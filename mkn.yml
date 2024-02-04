@@ -1,0 +1,28 @@
+
+name: clang.llvm-mca
+version: master
+property:
+  maiken_location: ${MKN_HOME}/app/mkn/${version}
+
+parent: base
+src: mod.cpp
+mode: shared
+if_arg:
+    win_shared: -DYAML_CPP_DLL
+    shared: -DKUL_SHARED
+
+profile:
+- name: base
+  dep: mkn&${maiken_location}[mod]
+
+- name: test
+  parent: base
+  main: test.cpp
+  dep: mkn&${maiken_location}[lib]
+  mod: clang.llvm-mca
+  if_link:
+    nix: -ldl -pthread
+
+- name: format
+  mod: |
+    clang.format{init{style: google, paths: .}}
