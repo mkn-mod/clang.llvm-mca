@@ -18,6 +18,7 @@ jobs:
         MKN_LIB_LINK_LIB: 1
         KUL_GIT_CO: --depth 1
       run: |
+        sudo apt update && sudo apt install -y llvm
         curl -Lo mkn https://github.com/mkn/mkn/releases/download/latest/mkn_nix
         chmod +x mkn
         KLOG=2 ./mkn clean build run -dtOa "-std=c++17 -fPIC"

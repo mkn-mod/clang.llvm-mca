@@ -39,19 +39,17 @@ class AppHack : public maiken::Application {
   std::string_view constexpr static base0 = " -save-temps=obj";
 
   auto static drop_file_type(std::string filename) {
-    mkn::kul::File file{filename};
-    filename = file.name();
+    filename = mkn::kul::File{filename}.name();
     return filename.substr(0, filename.rfind("."));
   }
 
-public:
+ public:
   auto update(maiken::Source const &s) {
-    std::string arg = s.args() + std::string{base0};
+    std::string const arg = s.args() + std::string{base0};
     return maiken::Source{s.in(), arg};
   }
   void hack() {
-    if (this->main_)
-      this->main_ = update(*this->main_);
+    if (this->main_) this->main_ = update(*this->main_);
   }
 
   auto hack_link() { return drop_file_type(this->main_->in()) + ".s"; }
@@ -60,40 +58,44 @@ public:
 };
 
 class LLVM_MCA_Module : public maiken::Module {
-public:
-  void compile(maiken::Application &a, YAML::Node const &node)
-      KTHROW(std::exception) override {
+ public:
+  void compile(maiken::Application &a, YAML::Node const &node) KTHROW(std::exception) override {
     reinterpret_cast<AppHack *>(&a)->hack();
   }
 
-  void link(maiken::Application &a, YAML::Node const &node)
-      KTHROW(std::exception) override {
+  void link(maiken::Application &a, YAML::Node const &node) KTHROW(std::exception) override {
     AppHack *hack = reinterpret_cast<AppHack *>(&a);
-    if (!hack->valid())
-      return;
+    if (!hack->valid()) return;
 
-    mkn::kul::Dir res{"res", a.buildDir()};
+    mkn::kul::Dir const res{"res", a.buildDir()};
     res.mk();
 
-    mkn::kul::Dir tmp{"tmp", a.buildDir()};
+    mkn::kul::Dir const tmp{"tmp", a.buildDir()};
     mkn::kul::File sss{hack->hack_link(), tmp};
 
-    mkn::kul::Process p{"llvm-mca-14"};
+    auto const mca_bin = [&]() -> std::string {
+      if (node["bin"]) return node["bin"].Scalar();
+      return "llvm-mca";
+    }();
+    mkn::kul::Process p{mca_bin};
     mkn::kul::ProcessCapture pc{p};
     p << sss.mini();
     p.start();
 
-    mkn::kul::File outfile{"llvm-mca.txt", res};
+    auto const mca_out = [&]() -> std::string {
+      if (node["out"]) return node["out"].Scalar();
+      return "llvm-mca.txt";
+    }();
+
+    mkn::kul::File const outfile{mca_out, res};
     mkn::kul::io::Writer{outfile} << pc.outs();
   }
 };
 
-} // namespace mkn::clang
+}  // namespace mkn::clang
 
 extern "C" KUL_PUBLISH maiken::Module *maiken_module_construct() {
   return new mkn ::clang ::LLVM_MCA_Module;
 }
 
-extern "C" KUL_PUBLISH void maiken_module_destruct(maiken::Module *p) {
-  delete p;
-}
+extern "C" KUL_PUBLISH void maiken_module_destruct(maiken::Module *p) { delete p; }
