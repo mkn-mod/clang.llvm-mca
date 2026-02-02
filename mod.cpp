@@ -29,7 +29,6 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #include <string_view>
-#include <unordered_set>
 
 #include "maiken/module/init.hpp"
 
@@ -43,13 +42,14 @@ class AppHack : public maiken::Application {
     return filename.substr(0, filename.rfind("."));
   }
 
- public:
+public:
   auto update(maiken::Source const &s) {
     std::string const arg = s.args() + std::string{base0};
     return maiken::Source{s.in(), arg};
   }
   void hack() {
-    if (this->main_) this->main_ = update(*this->main_);
+    if (this->main_)
+      this->main_ = update(*this->main_);
   }
 
   auto hack_link() { return drop_file_type(this->main_->in()) + ".s"; }
@@ -58,14 +58,17 @@ class AppHack : public maiken::Application {
 };
 
 class LLVM_MCA_Module : public maiken::Module {
- public:
-  void compile(maiken::Application &a, YAML::Node const &node) KTHROW(std::exception) override {
+public:
+  void compile(maiken::Application &a, YAML::Node const &node)
+      KTHROW(std::exception) override {
     reinterpret_cast<AppHack *>(&a)->hack();
   }
 
-  void link(maiken::Application &a, YAML::Node const &node) KTHROW(std::exception) override {
+  void link(maiken::Application &a, YAML::Node const &node)
+      KTHROW(std::exception) override {
     AppHack *hack = reinterpret_cast<AppHack *>(&a);
-    if (!hack->valid()) return;
+    if (!hack->valid())
+      return;
 
     mkn::kul::Dir const res{"res", a.buildDir()};
     res.mk();
@@ -74,7 +77,8 @@ class LLVM_MCA_Module : public maiken::Module {
     mkn::kul::File sss{hack->hack_link(), tmp};
 
     auto const mca_bin = [&]() -> std::string {
-      if (node["bin"]) return node["bin"].Scalar();
+      if (node["bin"])
+        return node["bin"].Scalar();
       return "llvm-mca";
     }();
     mkn::kul::Process p{mca_bin};
@@ -83,7 +87,8 @@ class LLVM_MCA_Module : public maiken::Module {
     p.start();
 
     auto const mca_out = [&]() -> std::string {
-      if (node["out"]) return node["out"].Scalar();
+      if (node["out"])
+        return node["out"].Scalar();
       return "llvm-mca.txt";
     }();
 
@@ -92,10 +97,12 @@ class LLVM_MCA_Module : public maiken::Module {
   }
 };
 
-}  // namespace mkn::clang
+} // namespace mkn::clang
 
-extern "C" KUL_PUBLISH maiken::Module *maiken_module_construct() {
+extern "C" MKN_KUL_PUBLISH maiken::Module *maiken_module_construct() {
   return new mkn ::clang ::LLVM_MCA_Module;
 }
 
-extern "C" KUL_PUBLISH void maiken_module_destruct(maiken::Module *p) { delete p; }
+extern "C" MKN_KUL_PUBLISH void maiken_module_destruct(maiken::Module *p) {
+  delete p;
+}
