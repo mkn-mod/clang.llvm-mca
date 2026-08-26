@@ -28,81 +28,73 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-#include <string_view>
+#include "mkn/mod/init.hpp"  // IWYU pragma: keep
 
-#include "maiken/module/init.hpp"
+#include "mkn/kul/io.hpp"
+#include "mkn/kul/log.hpp"
+#include "mkn/kul/os.hpp"
+#include "mkn/kul/proc.hpp"
+
+#include <unordered_set>
 
 namespace mkn::clang {
 
-class AppHack : public maiken::Application {
-  std::string_view constexpr static base0 = " -save-temps=obj";
-
-  auto static drop_file_type(std::string filename) {
+class LLVM_MCA_Module : public mkn::mod::Module {
+  static std::string drop_file_type(std::string filename) {
     filename = mkn::kul::File{filename}.name();
     return filename.substr(0, filename.rfind("."));
   }
 
-public:
-  auto update(maiken::Source const &s) {
-    std::string const arg = s.args() + std::string{base0};
-    return maiken::Source{s.in(), arg};
-  }
-  void hack() {
-    if (this->main_)
-      this->main_ = update(*this->main_);
-  }
+ public:
+  void link(mkn::mod::Context& ctx, YAML::Node const& node) KTHROW(std::exception) override {
+    std::string const mca_bin = node["bin"] ? node["bin"].Scalar() : "llvm-mca";
+    std::string const buildDir = ctx.state().get("buildDir", ".");
 
-  auto hack_link() { return drop_file_type(this->main_->in()) + ".s"; }
+    std::unordered_set<std::string> types;
+    if (node["types"])
+      for (auto const& s : mkn::kul::String::SPLIT(node["types"].Scalar(), ":")) types.insert(s);
 
-  bool valid() { return bool{this->main_}; }
-};
-
-class LLVM_MCA_Module : public maiken::Module {
-public:
-  void compile(maiken::Application &a, YAML::Node const &node)
-      KTHROW(std::exception) override {
-    reinterpret_cast<AppHack *>(&a)->hack();
-  }
-
-  void link(maiken::Application &a, YAML::Node const &node)
-      KTHROW(std::exception) override {
-    AppHack *hack = reinterpret_cast<AppHack *>(&a);
-    if (!hack->valid())
-      return;
-
-    mkn::kul::Dir const res{"res", a.buildDir()};
+    mkn::kul::Dir const res{"res", buildDir};
     res.mk();
+    mkn::kul::Dir const tmp{"tmp", buildDir};
+    tmp.mk();
 
-    mkn::kul::Dir const tmp{"tmp", a.buildDir()};
-    mkn::kul::File sss{hack->hack_link(), tmp};
+    KLOG(INF);
+    ctx.per_compiler_command([&](mkn::mod::CompileCommand const& cmd) {
+      std::string const name = mkn::kul::File(cmd.in).name();
+      auto const dot = name.rfind(".");
+      if (!types.empty() && (dot == std::string::npos || !types.count(name.substr(dot + 1))))
+        return;
 
-    auto const mca_bin = [&]() -> std::string {
-      if (node["bin"])
-        return node["bin"].Scalar();
-      return "llvm-mca";
-    }();
-    mkn::kul::Process p{mca_bin};
-    mkn::kul::ProcessCapture pc{p};
-    p << sss.mini();
-    p.start();
+      std::string const full = ctx.compileCommandFor(cmd.in);
+      auto const firstSpace = full.find(' ');
+      std::string const compiler = full.substr(0, firstSpace);
+      std::string const flags = full.substr(firstSpace + 1, full.rfind(" -o") - (firstSpace + 1));
 
-    auto const mca_out = [&]() -> std::string {
-      if (node["out"])
-        return node["out"].Scalar();
-      return "llvm-mca.txt";
-    }();
+      mkn::kul::File const asmFile{drop_file_type(cmd.in) + ".s", tmp};
 
-    mkn::kul::File const outfile{mca_out, res};
-    mkn::kul::io::Writer{outfile} << pc.outs();
+      mkn::kul::Process cc{compiler};
+      for (std::string const& a : mkn::kul::cli::asArgs(flags)) cc << a;
+      cc << "-S" << "-o" << asmFile.mini() << cmd.in;
+      KLOG(DBG) << cc;
+      cc.start();
+
+      mkn::kul::Process p{mca_bin};
+      mkn::kul::ProcessCapture pc{p};
+      p << asmFile.mini();
+      KLOG(DBG) << p;
+      p.start();
+
+      mkn::kul::File const outfile{drop_file_type(cmd.in) + ".llvm-mca.txt", res};
+      mkn::kul::io::Writer{outfile} << pc.outs();
+    });
   }
 };
 
-} // namespace mkn::clang
+}  // namespace mkn::clang
 
-extern "C" MKN_KUL_PUBLISH maiken::Module *maiken_module_construct() {
+extern "C" MKN_KUL_PUBLISH mkn::mod::Module* maiken_module_construct() {
   return new mkn ::clang ::LLVM_MCA_Module;
 }
 
-extern "C" MKN_KUL_PUBLISH void maiken_module_destruct(maiken::Module *p) {
-  delete p;
-}
+extern "C" MKN_KUL_PUBLISH void maiken_module_destruct(mkn::mod::Module* p) { delete p; }

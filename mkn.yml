@@ -1,8 +1,6 @@
 
 name: clang.llvm-mca
 version: master
-property:
-  maiken_location: ${MKN_HOME}/app/mkn/${version}
 
 parent: base
 src: mod.cpp
@@ -13,16 +11,13 @@ if_arg:
 
 profile:
 - name: base
-  dep: mkn&${maiken_location}[mod]
-
-- name: test
-  parent: base
-  main: test.cpp
-  dep: mkn&${maiken_location}[lib]
-  mod: clang.llvm-mca
-  if_link:
-    nix: -ldl -pthread
+  dep: mkn.mod
 
 - name: format
   mod: |
     clang.format{init{style: google, paths: .}}
+
+- name: test
+  parent: base
+  mod: clang.llvm-mca
+  src: mod.cpp
