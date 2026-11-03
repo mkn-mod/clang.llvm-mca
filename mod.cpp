@@ -125,7 +125,8 @@ class MCARegions {
 
   static Regions extract(std::vector<std::string> const& lines) {
     static std::regex const child{R"(Child Loop (BB\d+_\d+))"};
-    static std::regex const mark{R"(#\s*LLVM-MCA-(BEGIN|END)\s+(\S+))"};
+    // comment-only lines, the marker text can also appear in string literals (.asciz)
+    static std::regex const mark{R"(^\s*#\s*LLVM-MCA-(BEGIN|END)\s+(\S+))"};
 
     std::vector<Block> blocks;
     for (auto const& line : lines)
