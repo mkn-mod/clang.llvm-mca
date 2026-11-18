@@ -317,7 +317,8 @@ class LLVM_MCA_Module : public mkn::mod::Module {
     try {
       mkn::kul::Process cc{job.compiler};
       for (auto const& a : job.args) cc << a;
-      cc << "-S" << "-o" << job.asmFile.mini() << job.in;
+      // after the project's args: with -flto, -S emits LLVM IR / GIMPLE, not assembly
+      cc << "-fno-lto" << "-S" << "-o" << job.asmFile.mini() << job.in;
       exec(cc, "-S compile of " + job.in);
     } catch (mkn::kul::Exception const& e) {
       return shared.fail(e.what());
