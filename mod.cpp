@@ -317,8 +317,7 @@ class LLVM_MCA_Module : public mkn::mod::Module {
     try {
       mkn::kul::Process cc{job.compiler};
       for (auto const& a : job.args) cc << a;
-      // after the project's args: with -flto, -S emits LLVM IR / GIMPLE, not assembly
-      cc << "-fno-lto" << "-S" << "-o" << job.asmFile.mini() << job.in;
+      cc << "-S" << "-o" << job.asmFile.mini() << job.in;
       exec(cc, "-S compile of " + job.in);
     } catch (mkn::kul::Exception const& e) {
       return shared.fail(e.what());
@@ -407,7 +406,8 @@ class LLVM_MCA_Module : public mkn::mod::Module {
       if (!types.empty() && (dot == std::string::npos || !types.count(name.substr(dot + 1))))
         return;
 
-      std::string const full = ctx.compileCommandFor(cmd.in);
+      // without link time optimisation: with it, -S emits LLVM IR / GIMPLE, not assembly
+      std::string const full = ctx.compileCommandFor(cmd.in, {"lto"});
       auto const firstSpace = full.find(' ');
       std::string const flags = full.substr(firstSpace + 1, full.rfind(" -o") - (firstSpace + 1));
       if (compiler.empty()) compiler = real_compiler(full);
