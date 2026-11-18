@@ -302,7 +302,7 @@ class LLVM_MCA_Module : public mkn::mod::Module {
       for (std::size_t i = 1; i < shared.mcaArgs.size(); ++i) p << shared.mcaArgs[i];
       p << asmFile.mini();
       std::string const out = exec(p, "analysis of " + job.in + " region " + region);
-      mkn::kul::io::Writer{mkn::kul::File{region + ".llvm-mca.txt", job.resDir}} << out;
+      mkn::kul::io::Writer{mkn::kul::File{region + ".llvm-mca.txt", job.resDir}.full()} << out;
     } catch (mkn::kul::Exception const& e) {
       shared.fail(e.what());
     }
@@ -340,7 +340,7 @@ class LLVM_MCA_Module : public mkn::mod::Module {
     for (auto const& [region, lines] : regions) {
       mkn::kul::File const asmFile{region + ".s", job.tmpDir};
       {
-        mkn::kul::io::Writer w{asmFile};
+        mkn::kul::io::Writer w{asmFile.full()};
         for (auto const& line : lines) w << line << "\n";
       }
       analyse(shared, job, region, asmFile);
@@ -368,7 +368,7 @@ class LLVM_MCA_Module : public mkn::mod::Module {
     mkn::kul::Dir const incMkn{mkn::kul::Dir::JOIN(inc_dir(*buildDir), "mkn")};
     incMkn.mk();
     mkn::kul::File const header{"mca.hpp", incMkn};
-    if (!header) mkn::kul::io::Writer{header} << HEADER;
+    if (!header) mkn::kul::io::Writer{header.full()} << HEADER;
   }
 
   void link(mkn::mod::Context& ctx, YAML::Node const& node) KTHROW(std::exception) override {
