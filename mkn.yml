@@ -1,5 +1,5 @@
 
-name: clang.llvm-mca
+name: llvm.mca
 version: master
 
 parent: base
@@ -18,5 +18,5 @@ profile:
 
 - name: test
   parent: base
-  mod: clang.llvm-mca
+  mod: llvm.mca
   src: mod.cpp

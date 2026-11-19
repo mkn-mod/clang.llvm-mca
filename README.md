@@ -1,5 +1,5 @@
 
-# clang.llvm-mca
+# llvm.mca
 
 ** LLVM MCA module **
 
@@ -13,7 +13,7 @@ Puts output file in bin/$profile/res
 
 ```yaml
 mod:
-- name: clang.llvm-mca
+- name: llvm.mca
   link:
     bin: $str      # [optional] llvm-mca binary, default: "$compiler -print-prog-name=llvm-mca"
                    #   (e.g. clang++-19 -> /usr/lib/llvm-19/bin/llvm-mca), else "llvm-mca"
